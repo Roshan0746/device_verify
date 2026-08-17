@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Device Security Verification</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        .card {
+            background: #1e293b;
+            padding: 30px 20px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            max-width: 320px;
+            width: 100%;
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #334155;
+            border-top: 4px solid #38bdf8;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        h2 { margin: 0 0 10px 0; font-size: 20px; }
+        p { color: #94a3b8; font-size: 14px; margin: 0; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div class="spinner"></div>
+    <h2>Securing Device...</h2>
+    <p>Generating unique hardware fingerprint to prevent fraud.</p>
+</div>
+
+<script>
+    const tg = window.Telegram.WebApp;
+    tg.ready();
+    tg.expand();
+
+    async function sha256(message) {
+        const msgBuffer = new TextEncoder().encode(message);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    function getCanvasFingerprint() {
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = 200;
+            canvas.height = 50;
+            const ctx = canvas.getContext('2d');
+            ctx.textBaseline = "top";
+            ctx.font = "14px 'Arial'";
+            ctx.textBaseline = "alphabetic";
+            ctx.fillStyle = "#f60";
+            ctx.fillRect(125,1,62,20);
+            ctx.fillStyle = "#069";
+            ctx.fillText("anti-cheat-sys-v1", 2, 15);
+            ctx.fillStyle = "rgba(102, 204, 0, 0.7)";
+            ctx.fillText("anti-cheat-sys-v1", 4, 17);
+            return canvas.toDataURL();
+        } catch (e) {
+            return "canvas_err";
+        }
+    }
+
+    function getWebGLFingerprint() {
+        try {
+            const canvas = document.createElement('canvas');
+            const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            if (!gl) return "no_webgl";
+            const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+            return debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : "unknown_gpu";
+        } catch (e) {
+            return "webgl_err";
+        }
+    }
+
+    async function generateAndSendFingerprint() {
+        const screenData = `${screen.width}x${screen.height}x${screen.colorDepth}`;
+        const hardwareData = `${navigator.hardwareConcurrency || 0}_${navigator.deviceMemory || 0}_${navigator.platform}`;
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "unknown_tz";
+        const canvasFP = getCanvasFingerprint();
+        const webglFP = getWebGLFingerprint();
+
+        const rawSignature = `${screenData}|${hardwareData}|${timezone}|${canvasFP}|${webglFP}`;
+        const deviceHash = await sha256(rawSignature);
+
+        const payload = JSON.stringify({
+            device_hash: deviceHash,
+            platform: navigator.platform
+        });
+
+        // Send payload back to the Bot
+        setTimeout(() => {
+            tg.sendData(payload);
+        }, 1200);
+    }
+
+    window.onload = generateAndSendFingerprint;
+</script>
+
+</body>
+</html>
