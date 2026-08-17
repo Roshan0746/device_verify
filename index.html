@@ -261,6 +261,10 @@
             tg.expand();
         }
 
+        // Get bot username from URL param or fallback to current bot
+        const urlParams = new URLSearchParams(window.location.search);
+        const TARGET_BOT = urlParams.get('bot') || "newgivewaysbot";
+
         async function handleVerification() {
             const btn = document.getElementById('verifyBtn');
             const status = document.getElementById('statusText');
@@ -274,41 +278,33 @@
 
             try {
                 if (typeof window.FingerprintJS === 'undefined') {
-                    throw new Error("Scanner blocked. Please open inside Telegram without adblockers.");
+                    throw new Error("Scanner engine missing.");
                 }
 
                 const fp = await window.FingerprintJS.load();
                 const result = await fp.get();
                 const visitorId = result.visitorId;
 
-                status.textContent = 'Hardware Token Generated...';
+                status.textContent = '✓ Hardware Verified Successfully';
+                status.style.color = '#10b981';
+                dot.style.background = '#10b981';
+                dot.style.boxShadow = '0 0 10px #10b981';
+
+                btn.textContent = '✓ VERIFIED';
+                btn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+                btn.style.color = '#ffffff';
+
+                icon.style.borderColor = '#10b981';
 
                 setTimeout(() => {
-                    status.textContent = '✓ Hardware Verified Successfully';
-                    status.style.color = '#10b981';
-                    dot.style.background = '#10b981';
-                    dot.style.boxShadow = '0 0 10px #10b981';
-
-                    btn.textContent = '✓ VERIFIED';
-                    btn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
-                    btn.style.boxShadow = '0 8px 25px rgba(16, 185, 129, 0.4)';
-                    btn.style.color = '#ffffff';
-
-                    icon.style.borderColor = '#10b981';
-                    icon.style.boxShadow = '0 0 30px rgba(16, 185, 129, 0.5)';
-
-                    setTimeout(() => {
-                        if (tg && typeof tg.sendData === 'function') {
-                            // Direct official native WebApp data send
-                            tg.sendData(visitorId);
-                        } else {
-                            alert("Please open this screen directly inside Telegram.");
-                            btn.disabled = false;
-                            btn.style.opacity = '1';
-                            btn.textContent = 'VERIFY DEVICE';
-                        }
-                    }, 500);
-                }, 800);
+                    const returnUrl = `https://t.me/${TARGET_BOT}?start=v_${visitorId}`;
+                    if (tg && typeof tg.openTelegramLink === 'function') {
+                        tg.openTelegramLink(returnUrl);
+                        setTimeout(() => { tg.close(); }, 300);
+                    } else {
+                        window.location.href = returnUrl;
+                    }
+                }, 400);
 
             } catch (err) {
                 status.textContent = '❌ Error: ' + err.message;
